@@ -10,12 +10,26 @@ var fs = require("fs"),
 		"featuretests.html"
 	],
 	html_regex = /^([^]+<script>)([^]+)(<\/script>[^]+)$/,
-	result, contents
+	result,
+	contents,
+
+	DIR_LIB = path.join(__dirname,"..","lib"),
+	DIR_DEPLOY = path.join(__dirname,"..","deploy")
 ;
+
+if (!fs.existsSync(DIR_LIB)) {
+	console.error("lib/ missing!");
+	process.exit(1);
+}
 
 console.log("*** Building Deployed Files ***");
 
 try {
+	// make sure deploy/ exists
+	if (!fs.existsSync(DIR_DEPLOY)) {
+		fs.mkdirSync(DIR_DEPLOY);
+	}
+
 	files.forEach(function(filename){
 		if (/\.html$/.test(filename)) {
 			contents = fs.readFileSync(path.join(__dirname,"..","lib",filename),{ encoding: "utf8" });
