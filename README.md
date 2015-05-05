@@ -72,6 +72,6 @@ npm run build
 
 ## License
 
-The code and all the documentation are released under the MIT license.
+The code and all the documentation are all (c) 2015 Kyle Simpson and released under the MIT license.
 
 http://getify.mit-license.org/

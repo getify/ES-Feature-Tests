@@ -1,0 +1,178 @@
+#!/usr/bin/env node
+
+"use strict";
+
+// From: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+if (!Object.assign) {
+	Object.defineProperty(Object,"assign",{
+		enumerable: false,
+		configurable: true,
+		writable: true,
+		value: function(target, firstSource) {
+			"use strict";
+			if (target === undefined || target === null) {
+				throw new TypeError('Cannot convert first argument to object');
+			}
+
+			var to = Object(target);
+			for (var i = 1; i < arguments.length; i++) {
+				var nextSource = arguments[i];
+				if (nextSource === undefined || nextSource === null) {
+					continue;
+				}
+				nextSource = Object(nextSource);
+
+				var keysArray = Object.keys(Object(nextSource));
+				for (var nextIndex = 0, len = keysArray.length; nextIndex < len; nextIndex++) {
+					var nextKey = keysArray[nextIndex];
+					var desc = Object.getOwnPropertyDescriptor(nextSource, nextKey);
+					if (desc !== undefined && desc.enumerable) {
+						to[nextKey] = nextSource[nextKey];
+					}
+				}
+			}
+			return to;
+		}
+	});
+}
+
+var fs = require("fs"),
+	path = require("path"),
+	args = require("minimist")(process.argv,{ string: ["file","dir"] }),
+	ft = require(path.join(__dirname,"..","lib","featuretests.js")),
+
+	tests_needed = Object.assign({},ft.es6),
+
+	homedir = process.env[(process.platform == 'win32') ? 'USERPROFILE' : 'HOME'],
+	files = [],
+	output = ""
+;
+
+// initialize `tests_needed`
+Object.keys(tests_needed).forEach(function eacher(test){
+	tests_needed[test] = false;
+});
+
+// verify CLI usage
+if (args.help ||
+	!(
+		args.file ||
+		args.dir
+	)
+) {
+	printHelp();
+	process.exit(1);
+}
+
+// include manually specified files
+if (args.file) {
+	if (!Array.isArray(args.file)) args.file = [args.file];
+	files = files.concat(args.file.map(fixPath));
+}
+
+// include files from any specified directories
+if (args.dir) {
+	if (!Array.isArray(args.dir)) args.dir = [args.dir];
+	args.dir.forEach(function eacher(dir){
+		try {
+			dir = fixPath(dir);
+			files = files.concat(
+					fs.readdirSync(dir)
+					.map(function mapper(file){
+						return path.join(dir,file);
+					})
+				);
+		}
+		catch (err) {
+			console.error("Couldn't find directory:", dir);
+			process.exit(1);
+		}
+	});
+}
+
+// filter out any non-existent or non-file paths
+files = files.filter(function filterer(filepath){
+	try {
+		if (fs.existsSync(filepath)) {
+			var stat = fs.statSync(filepath);
+			if (stat.isFile()) return true;
+		}
+	}
+	catch (err) { }
+	return false;
+});
+
+// scan all files to populate `tests_needed`
+files.forEach(scanFile);
+
+// filter out any tests not needed
+tests_needed = Object.keys(tests_needed)
+	.filter(function filterer(test){
+		return tests_needed[test];
+	});
+
+// populate output
+if (tests_needed.length > 0) {
+	output += "function checkFeatureTests(testResults){return ";
+	tests_needed.forEach(function eacher(test,idx){
+		output += (idx > 0 ? "&&" : "") + "testResults[\"" + test + "\"]";
+	});
+	output += "}";
+}
+else {
+	output = "function checkFeatureTests(testResults){return true}";
+}
+
+console.log(output);
+
+// ***********************************
+
+function printHelp() {
+	console.log(
+		"testify: scanning for ES features to test\n",
+		"(c) 2015 Kyle Simpson | http://getify.mit-license.org/\n",
+		"\n",
+		"usage: testify opt [, ..opt]\n",
+		"\n",
+		"options:\n",
+		"--help                    show this help\n",
+		"\n",
+		"--file=file               scan a single file\n",
+		"--dir=directory           scan all files in a directory",
+		"\n"
+	);
+}
+
+// from: https://github.com/azer/expand-home-dir
+function expandHomeDir(fpath) {
+	if (!fpath) return fpath;
+	if (fpath == '~') return homedir;
+	if (fpath.slice(0, 2) != '~/') return fpath;
+	return path.join(homedir,fpath.slice(2));
+}
+
+function fixPath(pathStr) {
+	if (!path.isAbsolute(pathStr)) {
+		if (/^~/.test(pathStr)) {
+			pathStr = pathStr.replace(/^~/,function replacer(){
+				return expandHomeDir("~");
+			});
+		}
+		else if (!(new RegExp("^[" + path.sep + "]")).test(pathStr)) {
+			pathStr = path.join(__dirname,"..",pathStr);
+		}
+	}
+	return pathStr;
+}
+
+function scanFile(filepath) {
+	var contents = fs.readFileSync(filepath,{ encoding: "utf8" });
+
+	// TODO: don't just fake this with brittle regex,
+	// actually parse, and set *all* tests up
+	tests_needed.letConst = /\b(let|const)\b/.test(contents);
+	tests_needed.templateString = /`/.test(contents);
+	tests_needed.forOf = /for\s*\([^\)]+?\sof\s/.test(contents);
+	tests_needed.arrow = /\=>/.test(contents);
+	tests_needed.generator = /(function\s*\*)|\*(\[.*?\]|\w+)\(/.test(contents);
+}
