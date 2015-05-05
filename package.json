@@ -1,12 +1,13 @@
 {
 	"name": "es-feature-tests",
-	"version": "0.0.1-b",
+	"version": "0.0.1-c",
 	"description": "es-feature-tests: Feature Tests for JavaScript",
 	"main": "./lib/rs.js",
 	"scripts": {
 		"build": "./bin/build",
 		"prepublish": "./bin/build"
 	},
+	"dependencies": { },
 	"devDependencies": {
 		"uglify-js": "~2.4.8"
 	},
