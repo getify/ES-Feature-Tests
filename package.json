@@ -1,0 +1,27 @@
+{
+	"name": "es-feature-tests",
+	"version": "0.0.1-a",
+	"description": "es-feature-tests: Feature Tests for JavaScript",
+	"main": "./lib/rs.js",
+	"scripts": {
+		"build": "./bin/build",
+		"prepublish": "./bin/build"
+	},
+	"devDependencies": {
+		"uglify-js": "~2.4.8"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git://github.com/getify/es-feature-tests.git"
+	},
+	"keywords": [
+		"feature tests"
+	],
+	"bugs": {
+		"url": "https://github.com/getify/es-feature-tests/issues",
+		"email": "getify@gmail.com"
+	},
+	"homepage": "http://github.com/getify/es-feature-tests",
+	"author": "Kyle Simpson <getify@gmail.com>",
+	"license": "MIT"
+}

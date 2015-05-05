@@ -1,0 +1,158 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"></head><body><script>
+
+/*! es-feature-tests
+    v0.0.1-a (c) Kyle Simpson
+    MIT License: http://getify.mit-license.org
+*/
+
+function expireLocalCache() {
+	localStorage.removeItem(origin);
+}
+
+function messageFromParent(evt) {
+	var msg = JSON.parse(evt.data), tmp,
+		now = Date.now();
+	target = target || evt.source;
+
+	if (
+		msg.req == "all" &&
+		use_local_cache &&
+		(tmp = localStorage.getItem(origin))
+	) {
+		try {
+			tmp = JSON.parse(tmp);
+			tmp.expires = tmp.expires || (now + expiration);
+			if (now < tmp.expires) {
+				// send cached results
+				msg.res = tmp.results;
+				msg.expires = tmp.expires;
+				messageToParent(JSON.stringify(msg));
+				return;
+			}
+			else {
+				expireLocalCache();
+			}
+		}
+		catch (err) {}
+	}
+
+	if (messageTo) {
+		messageTo(evt.data);
+	}
+	else {
+		queue.push(evt.data);
+	}
+}
+
+function messageToParent(data) {
+	target.postMessage(data,"*");
+}
+
+function messageFrom(evt) {
+	var msg = JSON.parse(evt.data),
+		now = Date.now();
+	if (
+		use_local_cache &&
+		msg.req == "all"
+	) {
+		try {
+			localStorage.setItem(origin,JSON.stringify({
+				expires: now + expiration,
+				results: JSON.parse(evt.data).res
+			}));
+		}
+		catch (err) {}
+	}
+	messageToParent(evt.data);
+}
+
+function messageTo(data) {
+	worker_send.postMessage(data);
+}
+
+var target, worker, worker_send, script, tmp,
+	queue = [], local_storage_available,
+	use_local_cache = false, version,
+	loc = document.location.href.toString(),
+	expiration = 14 * 1000 * 60 * 60 * 24,
+	origin = "https://featuretests.io";
+
+// polyfill Date.now
+if (!Date.now) {
+	Date.now = function DateNow() {
+		return Number(new Date());
+	};
+}
+
+// feature test for localStorage
+local_storage_available = (function testLS(test) {
+	try {
+		localStorage.setItem(test, test);
+		localStorage.removeItem(test);
+		return true;
+	}
+	catch (err) {
+		return false;
+	}
+})("storage:featuretests.io");
+
+if (local_storage_available) {
+	tmp = loc.match(/\bcache=(yes|no)\b/);
+	if (tmp && tmp[1] == "no") {
+		expireLocalCache();
+	}
+	else {
+		use_local_cache = true;
+	}
+}
+
+tmp = loc.match(/\bv=(\d+)\b/);
+if (tmp && tmp[1]) {
+	version = Number(tmp[1]);
+}
+
+window.addEventListener("message",messageFromParent,false);
+
+if ("SharedWorker" in window) {
+	worker = new window.SharedWorker("/featuretests.js?v=" + version);
+	worker_send = worker.port;
+
+	worker.port.addEventListener("message",messageFrom);
+	worker.port.start();
+}
+else if ("Worker" in window) {
+	worker = new window.Worker("/featuretests.js?v=" + version);
+	worker_send = worker;
+
+	worker.addEventListener("message",messageFrom);
+	worker.postMessage("start");
+}
+else {
+	messageTo = null;
+	script = document.createElement("script");
+	script.src = "/featuretests.js?v=" + version;
+	script.onload = script.onreadystatechange = function onload() {
+		if ((script.readyState && script.readyState != "complete" && script.readyState != "loaded") || script.already_loaded) return;
+		script.already_loaded = true;
+		script = script.onload = script.onreadystatechange = null;
+		setup(
+			{
+				addEventListener: function fakeAddEventListener(_,cb) {
+					messageTo = function messageTo(data) {
+						cb({ data: data });
+					};
+					while (queue.length > 0) {
+						messageTo(queue.shift());
+					}
+				}
+			},
+			{
+				postMessage: function fakePostMessage(data){
+					messageFrom({ data: data });
+				}
+			}
+		);
+	};
+	document.body.appendChild(script);
+}
+</script></body></html>

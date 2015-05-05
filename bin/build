@@ -1,0 +1,66 @@
+#!/usr/bin/env node
+
+var fs = require("fs"),
+	path = require("path"),
+	ugly = require("uglify-js"),
+
+	files = [
+		"rs.js",
+		"featuretests.js",
+		"featuretests.html"
+	],
+	html_regex = /^([^]+<script>)([^]+)(<\/script>[^]+)$/,
+	result, contents
+;
+
+console.log("*** Building Deployed Files ***");
+
+try {
+	files.forEach(function(filename){
+		if (/\.html$/.test(filename)) {
+			contents = fs.readFileSync(path.join(__dirname,"..","lib",filename),{ encoding: "utf8" });
+			result = ugly.minify(
+				contents.replace(html_regex,function(_,$1,$2,$3){
+					return $2;
+				}),
+				{
+					fromString: true,
+					mangle: true,
+					compress: true,
+					output: {
+						comments: /^!/
+					}
+				}
+			);
+			result = {
+				code: contents.replace(html_regex,function(_,$1,$2,$3){
+						return $1 + "\n" + result.code + "\n" + $3;
+					})
+					.replace(/\s+$/,"")
+			};
+		}
+		else {
+			result = ugly.minify(path.join(__dirname,"..","lib",filename),{
+				mangle: true,
+				compress: true,
+				output: {
+					comments: /^!/
+				}
+			});
+		}
+
+		console.log("Minifying deploy/" + filename);
+
+		fs.writeFileSync(
+			path.join(__dirname,"..","deploy",filename),
+			result.code + "\n",
+			{ encoding: "utf8" }
+		);
+	});
+
+	console.log("Complete.");
+}
+catch (err) {
+	console.error(err);
+	process.exit(1);
+}
