@@ -12,6 +12,8 @@ Just use the original authored ES6+ code in newest browsers! Only use transpiled
 
 Don't rely on stale caniuse data baked into build tools that matches a browser based on brittle UserAgent string parsing. **Feature Test!** That's the most reliable and sensible approach.
 
+For much more detail about the *why* motivations and sanity checking the risks/concerns about scalability/reliability, see [ES6: Features By Testing](http://davidwalsh.name/es6-features-testing).
+
 ## Documentation
 
 The updated and detailed documentation for how this library works and what test results are available can be found on [FeatureTests.io/details](https://featuretests.io/details).
