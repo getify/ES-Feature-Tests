@@ -24,6 +24,8 @@ Hosting this package locally on your server is mostly useful if you want to use 
 
 You *can* install this package locally and web host your own copy of the library files if you prefer. You'll need to modify the URLs ("https://featuretests.io") in several places to get them to load correctly. Hosting the files also means the test results won't be shareable with other sites, which puts more testing burden on users' machines.
 
+Another concern that only applies if you're self-hosting and running your own tests is that all of the syntax-realted tests require using `new Function(..)` (or, ugh, `eval(..)`). If your site has a restrictive [CSP](https://developer.mozilla.org/en-US/docs/Web/Security/CSP), you will not be able to run those tests unless you relax it to allow `unsafe-eval`. By allowing the service to run the tests, that CSP policy is contained to the "featuretests.io" domain instead of polluting your site's domain.
+
 It's probably a much better idea to use the "https://featuretests.io" service's hosted versions of the files for web usage.
 
 ## Web
