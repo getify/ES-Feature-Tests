@@ -1,7 +1,7 @@
 <!DOCTYPE html><html><head><meta charset="utf-8"></head><body><script>
 
 /*! es-feature-tests
-    v0.0.3-a (c) Kyle Simpson
+    v0.0.4-a (c) Kyle Simpson
     MIT License: http://getify.mit-license.org
 */
 
@@ -22,7 +22,7 @@ function messageFromParent(evt) {
 		try {
 			tmp = JSON.parse(tmp);
 			tmp.expires = tmp.expires || (now + expiration);
-			if (now < tmp.expires) {
+			if (now < tmp.expires && tmp.version && tmp.version == version) {
 				// send cached results
 				msg.res = tmp.results;
 				msg.expires = tmp.expires;
@@ -58,6 +58,7 @@ function messageFrom(evt) {
 		try {
 			localStorage.setItem(origin,JSON.stringify({
 				expires: now + expiration,
+				version: version,
 				results: JSON.parse(evt.data).res
 			}));
 		}
