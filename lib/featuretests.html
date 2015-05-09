@@ -1,7 +1,7 @@
 <!DOCTYPE html><html><head><meta charset="utf-8"></head><body><script>
 
 /*! es-feature-tests
-    v0.0.4-a (c) Kyle Simpson
+    v0.0.4-b (c) Kyle Simpson
     MIT License: http://getify.mit-license.org
 */
 
@@ -115,7 +115,7 @@ if (tmp && tmp[1]) {
 window.addEventListener("message",messageFromParent,false);
 
 if ("SharedWorker" in window) {
-	worker = new window.SharedWorker("/featuretests.js?v=" + version);
+	worker = new window.SharedWorker("/featuretests.js?v=" + version,"ES Feature Tests");
 	worker_send = worker.port;
 
 	worker.port.addEventListener("message",messageFrom);
