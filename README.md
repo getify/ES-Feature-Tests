@@ -2,6 +2,8 @@
 
 Feature Tests for JavaScript. This is the library used by the [FeatureTests.io](https://featuretests.io) service.
 
+**If you're looking for the repository for the site itself, not this library, [go here instead](http://github.com/getify/featuretests.io).**
+
 ## Why
 
 Load the library, request feature test results for the current browser, use those results to determine what code to deliver for your application!
