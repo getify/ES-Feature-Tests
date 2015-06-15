@@ -11,7 +11,8 @@
 		"testify": "./bin/testify"
 	},
 	"dependencies": {
-		"minimist": "~1.1.1"
+		"minimist": "~1.1.1",
+		"acorn": "~2.0.1"
 	},
 	"devDependencies": {
 		"uglify-js": "~2.4.8"

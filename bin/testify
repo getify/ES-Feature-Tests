@@ -47,7 +47,8 @@ var fs = require("fs"),
 		ecmaVersion: 6,
 		allowHashBang: true
 	},
-	walk_options = {},
+	walk_visitors = {},
+	walk_handlers = Object.assign({},walk.base),
 
 	tests_needed = Object.assign({},ft.es6),
 
@@ -56,10 +57,27 @@ var fs = require("fs"),
 	output = ""
 ;
 
-// set up AST walk handlers
+// setup AST walk visitors
 Object.keys(walk.base).forEach(function eacher(type){
-	walk_options[type] = visitNode;
+	walk_visitors[type] = visitNode;
 });
+
+// setup AST walk handler overrides
+walk_handlers.Function = function(node,st,c) {
+	if (!Array.isArray(st)) st = [];
+	st.push("FNDECL");
+	if (node.params.length > 0) {
+		st.push("FNARGS");
+
+		for (var i = 0; i < node.params.length; i++) {
+			c(node.params[i], st, "Pattern");
+		}
+
+		st.pop();
+	}
+	c(node.body, st, "ScopeBody");
+	st.pop();
+};
 
 // initialize `tests_needed`
 Object.keys(tests_needed).forEach(function eacher(test){
@@ -184,10 +202,10 @@ function scanFile(filepath) {
 	var contents = fs.readFileSync(filepath,{ encoding: "utf8" }),
 		ast = acorn.parse(contents,parse_options);
 
-	walk.simple(ast,walk_options);
+	walk.simple(ast,walk_visitors,walk_handlers);
 }
 
-function visitNode(node) {
+function visitNode(node,state) {
 	if (!tests_needed.letConst &&
 		node.type == "VariableDeclaration" &&
 		(
@@ -232,6 +250,56 @@ function visitNode(node) {
 		)
 	) {
 		tests_needed["class"] = true;
+	}
+	else if (!tests_needed.spreadRest &&
+		(
+			node.type == "SpreadElement" ||
+			node.type == "RestElement"
+		)
+	) {
+		tests_needed.spreadRest = true;
+	}
+	else if (!tests_needed.symbol &&
+		node.type == "Identifier" &&
+		node.name == "Symbol"
+	) {
+		tests_needed.symbol = true;
+	}
+	else if (!tests_needed.moduleExport &&
+		(
+			node.type == "ExportNamedDeclaration" ||
+			node.type == "ExportDefaultDeclaration" ||
+			node.type == "ExportAllDeclaration"
+		)
+	) {
+		tests_needed.moduleExport = true;
+	}
+	else if (!tests_needed.moduleImport &&
+		node.type == "ImportDeclaration"
+	) {
+		tests_needed.moduleImport = true;
+	}
+	else if (!tests_needed.computedProperty &&
+		node.type == "Property" &&
+		node.computed
+	) {
+		tests_needed.computedProperty = true;
+	}
+	else if (!tests_needed.conciseMethodProperty &&
+		node.type == "Property" &&
+		(
+			node.shorthand ||
+			node.method
+		)
+	) {
+		tests_needed.conciseMethodProperty = true;
+	}
+	else if (!tests_needed.defaultParameter &&
+		node.type == "AssignmentPattern" &&
+		Array.isArray(state) &&
+		state[state.length-1] == "FNARGS"
+	) {
+		tests_needed.defaultParameter = true;
 	}
 
 	// TODO: add in the rest of the ES6 syntax checks
