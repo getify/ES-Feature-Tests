@@ -128,7 +128,9 @@ tests_needed = Object.keys(tests_needed)
 if (tests_needed.length > 0) {
 	output += "function checkFeatureTests(testResults){return ";
 	tests_needed.forEach(function eacher(test,idx){
-		output += (idx > 0 ? "&&" : "") + "testResults[\"" + test + "\"]";
+		output += (idx > 0 ? "&&" : "");
+		if (test == "class") output += "testResults[\"" + test + "\"]";
+		else output += "testResults." + test;
 	});
 	output += "}";
 }
@@ -222,6 +224,14 @@ function visitNode(node) {
 		node.generator
 	) {
 		tests_needed.generator = true;
+	}
+	else if (!tests_needed["class"] &&
+		(
+			node.type == "ClassDeclaration" ||
+			node.type == "ClassExpression"
+		)
+	) {
+		tests_needed["class"] = true;
 	}
 
 	// TODO: add in the rest of the ES6 syntax checks
