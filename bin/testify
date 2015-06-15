@@ -40,6 +40,14 @@ var fs = require("fs"),
 	path = require("path"),
 	args = require("minimist")(process.argv,{ string: ["file","dir"] }),
 	ft = require(path.join(__dirname,"..","lib","featuretests.js")),
+	acorn = require("acorn"),
+	walk = require("acorn/dist/walk"),
+
+	parse_options = {
+		ecmaVersion: 6,
+		allowHashBang: true
+	},
+	walk_options = {},
 
 	tests_needed = Object.assign({},ft.es6),
 
@@ -47,6 +55,11 @@ var fs = require("fs"),
 	files = [],
 	output = ""
 ;
+
+// set up AST walk handlers
+Object.keys(walk.base).forEach(function eacher(type){
+	walk_options[type] = visitNode;
+});
 
 // initialize `tests_needed`
 Object.keys(tests_needed).forEach(function eacher(test){
@@ -166,13 +179,50 @@ function fixPath(pathStr) {
 }
 
 function scanFile(filepath) {
-	var contents = fs.readFileSync(filepath,{ encoding: "utf8" });
+	var contents = fs.readFileSync(filepath,{ encoding: "utf8" }),
+		ast = acorn.parse(contents,parse_options);
 
-	// TODO: don't just fake this with brittle regex,
-	// actually parse, and set *all* tests up
-	tests_needed.letConst = /\b(let|const)\b/.test(contents);
-	tests_needed.templateString = /`/.test(contents);
-	tests_needed.forOf = /for\s*\([^\)]+?\sof\s/.test(contents);
-	tests_needed.arrow = /\=>/.test(contents);
-	tests_needed.generator = /(function\s*\*)|\*(\[.*?\]|\w+)\(/.test(contents);
+	walk.simple(ast,walk_options);
+}
+
+function visitNode(node) {
+	if (!tests_needed.letConst &&
+		node.type == "VariableDeclaration" &&
+		(
+			node.kind == "let" ||
+			node.kind == "const"
+		)
+	) {
+		tests_needed.letConst = true;
+	}
+	else if (!tests_needed.templateString &&
+		(
+			node.type == "TemplateLiteral" ||
+			node.type == "TaggedTemplateExpression"
+		)
+	) {
+		tests_needed.templateString = true;
+	}
+	else if (!tests_needed.forOf &&
+		node.type == "ForOfStatement"
+	) {
+		tests_needed.forOf = true;
+	}
+	else if (!tests_needed.arrow &&
+		node.type == "ArrowFunctionExpression"
+	) {
+		tests_needed.arrow = true;
+	}
+	else if (!tests_needed.generator &&
+		(
+			node.type == "FunctionDeclaration" ||
+			node.type == "FunctionExpression" ||
+			node.type == "MethodExpression"
+		) &&
+		node.generator
+	) {
+		tests_needed.generator = true;
+	}
+
+	// TODO: add in the rest of the ES6 syntax checks
 }
