@@ -1,6 +1,6 @@
 {
 	"name": "es-feature-tests",
-	"version": "0.0.5-a",
+	"version": "0.0.6-a",
 	"description": "es-feature-tests: Feature Tests for JavaScript",
 	"main": "./lib/rs.js",
 	"scripts": {
