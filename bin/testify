@@ -54,7 +54,13 @@ var fs = require("fs"),
 
 	homedir = process.env[(process.platform == 'win32') ? 'USERPROFILE' : 'HOME'],
 	files = [],
-	output = ""
+	output = "",
+
+	CONCISE = "CONCISE",
+	FUNC = "FUNC",
+	METHOD = "METHOD",
+	FNARGS = "FNARGS",
+	DESTRU = "DESTRU"
 ;
 
 // setup AST walk visitors
@@ -63,20 +69,39 @@ Object.keys(walk.base).forEach(function eacher(type){
 });
 
 // setup AST walk handler overrides
-walk_handlers.Function = function(node,st,c) {
+walk_handlers.Function = function $Function$(node,st,c) {
 	if (!Array.isArray(st)) st = [];
-	st.push("FNDECL");
-	if (node.params.length > 0) {
-		st.push("FNARGS");
+	st.push(st[st.length-1] == CONCISE ? METHOD : FUNC);
 
-		for (var i = 0; i < node.params.length; i++) {
-			c(node.params[i], st, "Pattern");
-		}
-
-		st.pop();
+	st.push(FNARGS);
+	for (var i = 0; i < node.params.length; i++) {
+		c(node.params[i], st, "Pattern");
 	}
+	st.pop();
+
 	c(node.body, st, "ScopeBody");
 	st.pop();
+};
+
+walk_handlers.ArrayPattern = function $ArrayPattern$(node,st,c) {
+	if (!Array.isArray(st)) st = [];
+	st.push(DESTRU);
+	walk.base.ArrayPattern.call(this,node,st,c);
+	st.pop();
+};
+
+walk_handlers.ObjectPattern = function $ObjectPattern$(node,st,c) {
+	if (!Array.isArray(st)) st = [];
+	st.push(DESTRU);
+	walk.base.ObjectPattern.call(this,node,st,c);
+	st.pop();
+};
+
+walk_handlers.Property = function $Property$(node,st,c) {
+	if (!Array.isArray(st)) st = [];
+	if (node.method || node.shorthand) st.push(CONCISE);
+	walk.base.Property.call(this,node,st,c);
+	if (node.method || node.shorthand) st.pop();
 };
 
 // initialize `tests_needed`
@@ -297,9 +322,75 @@ function visitNode(node,state) {
 	else if (!tests_needed.defaultParameter &&
 		node.type == "AssignmentPattern" &&
 		Array.isArray(state) &&
-		state[state.length-1] == "FNARGS"
+		state[state.length-1] == FNARGS
 	) {
 		tests_needed.defaultParameter = true;
+	}
+	else if (
+		node.type == "ObjectPattern" ||
+		node.type == "ArrayPattern"
+	) {
+		if (Array.isArray(state) &&
+			state[state.length-1] == FNARGS
+		) {
+			tests_needed.parameterDestructuring = true;
+		}
+		else {
+			tests_needed.destructuring = true;
+		}
+	}
+	else if (!tests_needed.numericLiteral &&
+		node.type == "Literal" &&
+		typeof node.raw == "string" &&
+		/^0[oObBxX]/.test(node.raw)
+	) {
+		tests_needed.numericLiteral = true;
+	}
+	else if (!tests_needed.oldOctalLiteral &&
+		node.type == "Literal" &&
+		typeof node.raw == "string" &&
+		/^0\d/.test(node.raw)
+	) {
+		tests_needed.oldOctalLiteral = true;
+	}
+	else if (!tests_needed.unicodeRegExp &&
+		node.type == "Literal" &&
+		node.regex &&
+		typeof node.regex.flags == "string" &&
+		~node.regex.flags.indexOf("u")
+	) {
+		tests_needed.unicodeRegExp = true;
+	}
+	else if (!tests_needed.stickyRegExp &&
+		node.type == "Literal" &&
+		node.regex &&
+		typeof node.regex.flags == "string" &&
+		~node.regex.flags.indexOf("y")
+	) {
+		tests_needed.stickyRegExp = true;
+	}
+	else if (!tests_needed.unicodeEscape &&
+		node.type == "Literal" &&
+		/(["']).*\\u\{[0-9a-f]+\}.*\1/i.test(node.raw)
+	) {
+		tests_needed.unicodeEscape = true;
+	}
+	else if (!tests_needed.objectSuper &&
+		node.type == "Super" &&
+		Array.isArray(state) &&
+		state[state.length-1] == METHOD
+	) {
+		tests_needed.objectSuper = true;
+	}
+	else if (!tests_needed.objectProto &&
+		node.type == "Property" &&
+		node.key &&
+		(
+			node.key.name == "__proto__" ||
+			node.key.value == "__proto__"
+		)
+	) {
+		tests_needed.objectProto = true;
 	}
 
 	// TODO: add in the rest of the ES6 syntax checks
