@@ -40,7 +40,7 @@ var fs = require("fs"),
 	path = require("path"),
 	args = require("minimist")(process.argv,{ string: ["file","dir"] }),
 	ft = require(path.join(__dirname,"..","lib","featuretests.js")),
-	acorn = require("acorn"),
+	acorn = require("acorn/dist/acorn_loose.js"),
 	walk = require("acorn/dist/walk"),
 
 	parse_options = {
@@ -225,7 +225,7 @@ function fixPath(pathStr) {
 
 function scanFile(filepath) {
 	var contents = fs.readFileSync(filepath,{ encoding: "utf8" }),
-		ast = acorn.parse(contents,parse_options);
+		ast = acorn.parse_dammit(contents,parse_options);
 
 	walk.simple(ast,walk_visitors,walk_handlers);
 }
