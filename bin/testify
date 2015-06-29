@@ -2,45 +2,14 @@
 
 "use strict";
 
-// From: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
-if (!Object.assign) {
-	Object.defineProperty(Object,"assign",{
-		enumerable: false,
-		configurable: true,
-		writable: true,
-		value: function(target, firstSource) {
-			"use strict";
-			if (target === undefined || target === null) {
-				throw new TypeError('Cannot convert first argument to object');
-			}
-
-			var to = Object(target);
-			for (var i = 1; i < arguments.length; i++) {
-				var nextSource = arguments[i];
-				if (nextSource === undefined || nextSource === null) {
-					continue;
-				}
-				nextSource = Object(nextSource);
-
-				var keysArray = Object.keys(Object(nextSource));
-				for (var nextIndex = 0, len = keysArray.length; nextIndex < len; nextIndex++) {
-					var nextKey = keysArray[nextIndex];
-					var desc = Object.getOwnPropertyDescriptor(nextSource, nextKey);
-					if (desc !== undefined && desc.enumerable) {
-						to[nextKey] = nextSource[nextKey];
-					}
-				}
-			}
-			return to;
-		}
-	});
-}
+// Minified from: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+Object.assign||Object.defineProperty(Object,"assign",{enumerable:!1,configurable:!0,writable:!0,value:function(a){"use strict";if(void 0===a||null===a)throw new TypeError("Cannot convert first argument to object");for(var c=Object(a),d=1;d<arguments.length;d++){var e=arguments[d];if(void 0!==e&&null!==e){e=Object(e);for(var f=Object.keys(Object(e)),g=0,h=f.length;h>g;g++){var i=f[g],j=Object.getOwnPropertyDescriptor(e,i);void 0!==j&&j.enumerable&&(c[i]=e[i])}}}return c}});
 
 var fs = require("fs"),
 	path = require("path"),
 	args = require("minimist")(process.argv,{ string: ["file","dir"] }),
 	ft = require(path.join(__dirname,"..","lib","featuretests.js")),
-	acorn = require("acorn/dist/acorn_loose.js"),
+	acorn = require("acorn/dist/acorn_loose"),
 	walk = require("acorn/dist/walk"),
 
 	parse_options = {
