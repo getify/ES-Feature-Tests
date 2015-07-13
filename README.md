@@ -82,7 +82,7 @@ In the preceding example, both the `letConst` test result and the `templateStrin
 By letting `testify` scan your files, you won't need to manually maintain a list of checks for your code base. Just simply run `testify` during your build process, and include the code it produces (like shown above) into your initial bootstrapped code that will run the feature tests. Use the generated `checkFeatureTests(..)` with the *es-feature-tests* library like so:
 
 ```js
-var supports = window["Reflect_supports"];
+var supports = window["Reflect.supports"];
 
 // or in Node:
 // var supports = require("es-feature-tests");
