@@ -6,361 +6,187 @@
 Object.assign||Object.defineProperty(Object,"assign",{enumerable:!1,configurable:!0,writable:!0,value:function(a){"use strict";if(void 0===a||null===a)throw new TypeError("Cannot convert first argument to object");for(var c=Object(a),d=1;d<arguments.length;d++){var e=arguments[d];if(void 0!==e&&null!==e){e=Object(e);for(var f=Object.keys(Object(e)),g=0,h=f.length;h>g;g++){var i=f[g],j=Object.getOwnPropertyDescriptor(e,i);void 0!==j&&j.enumerable&&(c[i]=e[i])}}}return c}});
 
 var fs = require("fs"),
+	os = require("os"),
 	path = require("path"),
-	args = require("minimist")(process.argv,{ string: ["file","dir"] }),
-	ft = require(path.join(__dirname,"..","lib","featuretests.js")),
-	acorn = require("acorn/dist/acorn_loose"),
-	walk = require("acorn/dist/walk"),
-
-	parse_options = {
-		ecmaVersion: 6,
-		allowHashBang: true
-	},
-	walk_visitors = {},
-	walk_handlers = Object.assign({},walk.base),
-
-	tests_needed = Object.assign({},ft.es6),
-
-	homedir = process.env[(process.platform == 'win32') ? 'USERPROFILE' : 'HOME'],
-	files = [],
-	output = "",
-
-	CONCISE = "CONCISE",
-	FUNC = "FUNC",
-	METHOD = "METHOD",
-	FNARGS = "FNARGS",
-	DESTRU = "DESTRU"
+	args = require("minimist")(process.argv,{
+		boolean: [ "recursive", "ignore-missing", "ignore-invalid" ],
+		string: [ "file", "dir", "require", "exclude" ],
+		default: {
+			"recursive": false,
+			"require": [],
+			"exclude": []
+		},
+		alias: {
+			"recursive": "R",
+			"ignore-missing": "M",
+			"ignore-invalid": "I"
+		}
+	}),
+	testify = require(path.join(__dirname,"..","lib","testify","index.js"))
 ;
 
-// setup AST walk visitors
-Object.keys(walk.base).forEach(function eacher(type){
-	walk_visitors[type] = visitNode;
-});
-
-// setup AST walk handler overrides
-walk_handlers.Function = function $Function$(node,st,c) {
-	if (!Array.isArray(st)) st = [];
-	st.push(st[st.length-1] == CONCISE ? METHOD : FUNC);
-
-	st.push(FNARGS);
-	for (var i = 0; i < node.params.length; i++) {
-		c(node.params[i], st, "Pattern");
-	}
-	st.pop();
-
-	c(node.body, st, "ScopeBody");
-	st.pop();
-};
-
-walk_handlers.ArrayPattern = function $ArrayPattern$(node,st,c) {
-	if (!Array.isArray(st)) st = [];
-	st.push(DESTRU);
-	walk.base.ArrayPattern.call(this,node,st,c);
-	st.pop();
-};
-
-walk_handlers.ObjectPattern = function $ObjectPattern$(node,st,c) {
-	if (!Array.isArray(st)) st = [];
-	st.push(DESTRU);
-	walk.base.ObjectPattern.call(this,node,st,c);
-	st.pop();
-};
-
-walk_handlers.Property = function $Property$(node,st,c) {
-	if (!Array.isArray(st)) st = [];
-	if (node.method || node.shorthand) st.push(CONCISE);
-	walk.base.Property.call(this,node,st,c);
-	if (node.method || node.shorthand) st.pop();
-};
-
-// initialize `tests_needed`
-Object.keys(tests_needed).forEach(function eacher(test){
-	tests_needed[test] = false;
-});
-
-// verify CLI usage
-if (args.help ||
-	!(
-		args.file ||
-		args.dir
-	)
-) {
-	printHelp();
-	process.exit(1);
-}
-
-// include manually specified files
-if (args.file) {
-	if (!Array.isArray(args.file)) args.file = [args.file];
-	files = files.concat(args.file.map(fixPath));
-}
-
-// include files from any specified directories
-if (args.dir) {
-	if (!Array.isArray(args.dir)) args.dir = [args.dir];
-	args.dir.forEach(function eacher(dir){
-		try {
-			dir = fixPath(dir);
-			files = files.concat(
-					fs.readdirSync(dir)
-					.map(function mapper(file){
-						return path.join(dir,file);
-					})
-				);
-		}
-		catch (err) {
-			console.error("Couldn't find directory:", dir);
-			process.exit(1);
-		}
-	});
-}
-
-// filter out any non-existent or non-file paths
-files = files.filter(function filterer(filepath){
-	try {
-		if (fs.existsSync(filepath)) {
-			var stat = fs.statSync(filepath);
-			if (stat.isFile()) return true;
-		}
-	}
-	catch (err) { }
-	return false;
-});
-
-// scan all files to populate `tests_needed`
-files.forEach(scanFile);
-
-// filter out any tests not needed
-tests_needed = Object.keys(tests_needed)
-	.filter(function filterer(test){
-		return tests_needed[test];
-	});
-
-// populate output
-if (tests_needed.length > 0) {
-	output += "function checkFeatureTests(testResults){return ";
-	tests_needed.forEach(function eacher(test,idx){
-		output += (idx > 0 ? "&&" : "");
-		if (test == "class") output += "testResults[\"" + test + "\"]";
-		else output += "testResults." + test;
-	});
-	output += "}";
-}
-else {
-	output = "function checkFeatureTests(testResults){return true}";
-}
-
-console.log(output);
+main();
 
 // ***********************************
 
 function printHelp() {
 	console.log(
-		"testify: scanning for ES features to test\n",
+		"testify: scan for ES6+ features that need tests\n",
 		"(c) 2015 Kyle Simpson | http://getify.mit-license.org/\n",
 		"\n",
-		"usage: testify opt [, ..opt]\n",
+		"usage: testify [--file|--dir]=path [opt ...]\n",
 		"\n",
 		"options:\n",
 		"--help                    show this help\n",
 		"\n",
 		"--file=file               scan a single file\n",
-		"--dir=directory           scan all files in a directory",
-		"\n"
+		"--dir=directory           scan all files in a directory\n",
+		"--exclude=pattern         exclude any included paths that match pattern (JS regex)\n",
+		"\n",
+		"--require=test-name       force inclusion of a test by name\n",
+		"\n",
+		"-R, --recursive           directory scan is recursive\n",
+		"                          (default: off)\n",
+		"-M, --ignore-missing      ignore missing dependency files\n",
+		"                          (default: off)\n",
+		"-I, --ignore-invalid      ignore JS parsing issues\n",
+		"                          (default: off)\n"
 	);
 }
 
-// from: https://github.com/azer/expand-home-dir
-function expandHomeDir(fpath) {
-	if (!fpath) return fpath;
-	if (fpath == '~') return homedir;
-	if (fpath.slice(0, 2) != '~/') return fpath;
-	return path.join(homedir,fpath.slice(2));
-}
-
-function fixPath(pathStr) {
-	if (!path.isAbsolute(pathStr)) {
-		if (/^~/.test(pathStr)) {
-			pathStr = pathStr.replace(/^~/,function replacer(){
-				return expandHomeDir("~");
-			});
-		}
-		else if (!(new RegExp("^[" + path.sep + "]")).test(pathStr)) {
-			pathStr = path.join(__dirname,"..",pathStr);
-		}
+function validateParams() {
+	if (args.help) {
+		QUIT();
 	}
-	return pathStr;
-}
-
-function scanFile(filepath) {
-	var contents = fs.readFileSync(filepath,{ encoding: "utf8" }),
-		ast = acorn.parse_dammit(contents,parse_options);
-
-	walk.simple(ast,walk_visitors,walk_handlers);
-}
-
-function visitNode(node,state) {
-	if (!tests_needed.letConst &&
-		node.type == "VariableDeclaration" &&
-		(
-			node.kind == "let" ||
-			node.kind == "const"
-		)
-	) {
-		tests_needed.letConst = true;
-	}
-	else if (!tests_needed.templateString &&
-		(
-			node.type == "TemplateLiteral" ||
-			node.type == "TaggedTemplateExpression"
-		)
-	) {
-		tests_needed.templateString = true;
-	}
-	else if (!tests_needed.forOf &&
-		node.type == "ForOfStatement"
-	) {
-		tests_needed.forOf = true;
-	}
-	else if (!tests_needed.arrow &&
-		node.type == "ArrowFunctionExpression"
-	) {
-		tests_needed.arrow = true;
-	}
-	else if (!tests_needed.generator &&
-		(
-			node.type == "FunctionDeclaration" ||
-			node.type == "FunctionExpression" ||
-			node.type == "MethodExpression"
-		) &&
-		node.generator
-	) {
-		tests_needed.generator = true;
-	}
-	else if (!tests_needed["class"] &&
-		(
-			node.type == "ClassDeclaration" ||
-			node.type == "ClassExpression"
-		)
-	) {
-		tests_needed["class"] = true;
-	}
-	else if (!tests_needed.spreadRest &&
-		(
-			node.type == "SpreadElement" ||
-			node.type == "RestElement"
-		)
-	) {
-		tests_needed.spreadRest = true;
-	}
-	else if (!tests_needed.symbol &&
-		node.type == "Identifier" &&
-		node.name == "Symbol"
-	) {
-		tests_needed.symbol = true;
-	}
-	else if (!tests_needed.moduleExport &&
-		(
-			node.type == "ExportNamedDeclaration" ||
-			node.type == "ExportDefaultDeclaration" ||
-			node.type == "ExportAllDeclaration"
-		)
-	) {
-		tests_needed.moduleExport = true;
-	}
-	else if (!tests_needed.moduleImport &&
-		node.type == "ImportDeclaration"
-	) {
-		tests_needed.moduleImport = true;
-	}
-	else if (!tests_needed.computedProperty &&
-		node.type == "Property" &&
-		node.computed
-	) {
-		tests_needed.computedProperty = true;
-	}
-	else if (!tests_needed.conciseMethodProperty &&
-		node.type == "Property" &&
-		(
-			node.shorthand ||
-			node.method
-		)
-	) {
-		tests_needed.conciseMethodProperty = true;
-	}
-	else if (!tests_needed.defaultParameter &&
-		node.type == "AssignmentPattern" &&
-		Array.isArray(state) &&
-		state[state.length-1] == FNARGS
-	) {
-		tests_needed.defaultParameter = true;
+	else if (!(
+			"file" in args ||
+			"dir" in args
+	)) {
+		QUIT("Required: '--file' or '--dir'");
 	}
 	else if (
-		node.type == "ObjectPattern" ||
-		node.type == "ArrayPattern"
-	) {
-		if (Array.isArray(state) &&
-			state[state.length-1] == FNARGS
-		) {
-			tests_needed.parameterDestructuring = true;
-		}
-		else {
-			tests_needed.destructuring = true;
-		}
-	}
-	else if (!tests_needed.numericLiteral &&
-		node.type == "Literal" &&
-		typeof node.raw == "string" &&
-		/^0[oObBxX]/.test(node.raw)
-	) {
-		tests_needed.numericLiteral = true;
-	}
-	else if (!tests_needed.oldOctalLiteral &&
-		node.type == "Literal" &&
-		typeof node.raw == "string" &&
-		/^0\d/.test(node.raw)
-	) {
-		tests_needed.oldOctalLiteral = true;
-	}
-	else if (!tests_needed.unicodeRegExp &&
-		node.type == "Literal" &&
-		node.regex &&
-		typeof node.regex.flags == "string" &&
-		~node.regex.flags.indexOf("u")
-	) {
-		tests_needed.unicodeRegExp = true;
-	}
-	else if (!tests_needed.stickyRegExp &&
-		node.type == "Literal" &&
-		node.regex &&
-		typeof node.regex.flags == "string" &&
-		~node.regex.flags.indexOf("y")
-	) {
-		tests_needed.stickyRegExp = true;
-	}
-	else if (!tests_needed.unicodeEscape &&
-		node.type == "Literal" &&
-		/(["']).*\\u\{[0-9a-f]+\}.*\1/i.test(node.raw)
-	) {
-		tests_needed.unicodeEscape = true;
-	}
-	else if (!tests_needed.objectSuper &&
-		node.type == "Super" &&
-		Array.isArray(state) &&
-		state[state.length-1] == METHOD
-	) {
-		tests_needed.objectSuper = true;
-	}
-	else if (!tests_needed.objectProto &&
-		node.type == "Property" &&
-		node.key &&
+		args.file != null &&
 		(
-			node.key.name == "__proto__" ||
-			node.key.value == "__proto__"
+			args.file === "" ||
+			(
+				typeof args.file != "string" &&
+				!Array.isArray(args.file)
+			) ||
+			(
+				Array.isArray(args.file) &&
+				~args.file.indexOf("")
+			)
 		)
 	) {
-		tests_needed.objectProto = true;
+		QUIT("Each '--file' must specify a non-empty value");
 	}
+	else if (
+		args.dir != null &&
+		(
+			args.dir === "" ||
+			(
+				typeof args.dir != "string" &&
+				!Array.isArray(args.dir)
+			) ||
+			(
+				Array.isArray(args.dir) &&
+				~args.dir.indexOf("")
+			)
+		)
+	) {
+		QUIT("Each '--dir' must specify a non-empty value");
+	}
+	else if (
+		args.exclude != null &&
+		(
+			args.exclude === "" ||
+			(
+				typeof args.exclude != "string" &&
+				!Array.isArray(args.exclude)
+			) ||
+			(
+				Array.isArray(args.exclude) &&
+				~args.exclude.indexOf("")
+			)
+		)
+	) {
+		QUIT("Each '--exclude' must specify a non-empty value");
+	}
+	else if (
+		args.require != null &&
+		(
+			args.require === "" ||
+			(
+				typeof args.require != "string" &&
+				!Array.isArray(args.require)
+			) ||
+			(
+				Array.isArray(args.require) &&
+				~args.require.indexOf("")
+			)
+		)
+	) {
+		QUIT("Each '--require' must specify a non-empty value");
+	}
+	else if (
+		"recursive" in args &&
+		typeof args.recursive != "boolean"
+	) {
+		QUIT("'--recursive (-R)' must have no value");
+	}
+	else if (
+		"ignore-missing" in args &&
+		typeof args["ignore-missing"] != "boolean"
+	) {
+		QUIT("'--ignore-missing (-M)' must have no value");
+	}
+	else if (
+		"ignore-invalid" in args &&
+		typeof args["ignore-invalid"] != "boolean"
+	) {
+		QUIT("'--ignore-invalid (-I)' must have no value");
+	}
+}
 
-	// TODO: add in the rest of the ES6 syntax checks
+function processParams() {
+	// verify CLI usage
+	validateParams();
+}
+
+function QUIT(fatal,hideHelp) {
+	if (fatal) {
+		console.error("testify:",fatal);
+		console.error("");
+	}
+	if (!hideHelp) {
+		printHelp();
+	}
+	process.exit(fatal ? 1 : 0);
+}
+
+function main() {
+	var output;
+
+	processParams();
+
+	try {
+		// set options from params
+		output = testify.scan({
+			files: args.file,
+			dirs: args.dir,
+			excludes: args.exclude,
+			requires: args.require,
+			recursive: args.recursive,
+
+			ignore: {
+				missing: args["ignore-missing"],
+				invalid: args["ignore-invalid"]
+			}
+		});
+
+		process.stdout.write(output);
+	}
+	catch (err) {
+		QUIT(err.message);
+	}
 }

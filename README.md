@@ -67,6 +67,94 @@ ReflectSupports( "all", function(results,timestamp){
 });
 ```
 
+## Testify CLI
+
+This package also includes a `testify` CLI tool, which scans files for ES6 features and produces the code for a JS function called `checkFeatureTests(..)`. For example:
+
+```js
+function checkFeatureTests(testResults){return testResults.letConst&&testResults.templateString}
+```
+
+As shown, `checkFeatureTests(..)` receives the feature test results (as provided by this *es-feature-tests* library), and returns `true` or `false` indicating if the test results are sufficient or not. This test tells you if your ES6-authored files can be loaded directly into the environment in question, or if you need to load the transpiled version of your code.
+
+In the preceding example, both the `letConst` test result and the `templateString` test result must pass for `checkFeatureTests(..)` to pass.
+
+By letting `testify` scan your files, you won't need to manually maintain a list of checks for your code base. Just simply run `testify` during your build process, and include the code it produces (like shown above) into your initial bootstrapped code that will run the feature tests. Use the generated `checkFeatureTests(..)` with the *es-feature-tests* library like so:
+
+```js
+var supports = window["Reflect_supports"];
+
+// or in Node:
+// var supports = require("es-feature-tests");
+
+supports( "all", function(results){
+	if (checkFeatureTests(results)) {
+		// load ES6 code
+	}
+	else {
+		// load transpiled code instead
+	}
+});
+```
+
+The `testify` CLI tool has the following options:
+
+```
+usage: testify [--file|--dir]=path [opt ...]
+
+options:
+--help                    show this help
+
+--file=file               scan a single file
+--dir=directory           scan all files in a directory
+--exclude=pattern         exclude any included paths that match pattern (JS regex)
+
+--require=test-name       force inclusion of a test by name
+
+-R, --recursive           directory scan is recursive
+                          (default: off)
+-M, --ignore-missing      ignore missing dependency files
+                          (default: off)
+-I, --ignore-invalid      ignore JS parsing issues
+                          (default: off)
+```
+
+You specify file(s) to scan by using one or more `--file` and/or `--dir` flags.
+
+If you use `--dir`, that directory's contents will be examined (non-recursively), and all found JS files will be scanned. Use `--recursive (-R)` to recursively examine sub-directories. To exclude any files/paths from this processing, use one or more `--exclude` flags, specifying a JS-style regular expression to match for exclusion (note: to avoid shell escaping issues, surround your regex in ' ' quotes).
+
+To force the inclusion of a specific test check, use `--require` and specify the test name (matching the test result from this *es-feature-tests* library).
+
+Suppress errors for missing scan files with `--ignore-missing` and for invalid files (failure to parse the JS) with `--ignore-invalid`.
+
+### Testify Library
+
+`testify` can also be used programmatically in JS:
+
+```js
+var testify = require("es-feature-tests/lib/testify/index.js"),
+	code = testify.scan({ ..options.. });
+
+// (Optional) To use the function inside Node:
+var checkFeatureTests = new Function(
+	"res",
+	code + ";return checkFeatureTests(res)"
+);
+```
+
+The options correspond similarly to the CLI parameters described above:
+
+* `files` (`string`, `array`): specifies file(s) to scan
+* `dirs` (`string`, `array`): specifies director(ies) of file(s) to scan
+* `excludes` (`string`, `array`): specifies exclusion pattern(s)
+* `requires` (`string`, `array`): specifies test(s) that should be included
+* `recursive` (`boolean`, default: `false`): make directory scans recursive
+* `ignore` (`object`, `boolean`): if `true`/`false`, will set all sub-properties accordingly; otherwise, should be an object with one or more of these:
+  - `ignore.missing` (`boolean`): ignore files or directories not found
+  - `ignore.invalid` (`boolean`): ignore files where the scan fails
+
+**Note:** `files`, `dirs`, `excludes`, and `requires` are all plurally named as options, but singularly named as CLI parameters.
+
 ## GitHub
 
 If you install this package from GitHub instead of npm, you won't have the `deploy/*` files for deployment. Run these commands from the main repo directory to build them:
