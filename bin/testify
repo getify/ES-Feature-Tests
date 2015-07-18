@@ -10,9 +10,10 @@ var fs = require("fs"),
 	path = require("path"),
 	args = require("minimist")(process.argv,{
 		boolean: [ "recursive", "ignore-missing", "ignore-invalid" ],
-		string: [ "file", "dir", "require", "exclude" ],
+		string: [ "file", "dir", "require", "exclude", "output" ],
 		default: {
 			"recursive": false,
+			"output": "simple",
 			"require": [],
 			"exclude": []
 		},
@@ -42,6 +43,10 @@ function printHelp() {
 		"--file=file               scan a single file\n",
 		"--dir=directory           scan all files in a directory\n",
 		"--exclude=pattern         exclude any included paths that match pattern (JS regex)\n",
+		"\n",
+		"--output=[simple|json|babel|traceur]\n",
+		"                          control output format (see docs)\n",
+		"                          (default: simple)\n",
 		"\n",
 		"--require=test-name       force inclusion of a test by name\n",
 		"\n",
@@ -113,6 +118,12 @@ function validateParams() {
 		QUIT("Each '--exclude' must specify a non-empty value");
 	}
 	else if (
+		args.output &&
+		!~(["simple","json","babel","traceur"]).indexOf(args.output)
+	) {
+		QUIT("'--output' must be included only once and be one of: 'simple', 'json', 'babel', or 'traceur'");
+	}
+	else if (
 		args.require != null &&
 		(
 			args.require === "" ||
@@ -175,6 +186,7 @@ function main() {
 			files: args.file,
 			dirs: args.dir,
 			excludes: args.exclude,
+			output: args.output,
 			requires: args.require,
 			recursive: args.recursive,
 
@@ -183,6 +195,8 @@ function main() {
 				invalid: args["ignore-invalid"]
 			}
 		});
+
+		if (typeof output != "string") output = JSON.stringify(output);
 
 		process.stdout.write(output);
 	}
