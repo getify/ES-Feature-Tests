@@ -109,6 +109,9 @@ options:
 --dir=directory           scan all files in a directory
 --exclude=pattern         exclude any included paths that match pattern (JS regex)
 
+--output=[simple|json|babel|traceur]
+                          control output format (see docs)
+                          (default: simple)
 --require=test-name       force inclusion of a test by name
 
 -R, --recursive           directory scan is recursive
@@ -122,6 +125,8 @@ options:
 You specify file(s) to scan by using one or more `--file` and/or `--dir` flags.
 
 If you use `--dir`, that directory's contents will be examined (non-recursively), and all found JS files will be scanned. Use `--recursive (-R)` to recursively examine sub-directories. To exclude any files/paths from this processing, use one or more `--exclude` flags, specifying a JS-style regular expression to match for exclusion (note: to avoid shell escaping issues, surround your regex in ' ' quotes).
+
+The default (`--output=simple`) output of the `testify` CLI tool is the code for the `checkFeatureTests(..)` function, as described above. If you'd prefer to receive a JSON string holding the array of tests needed by name, specify `--output=json`. If you want to produce a [Babel](https://babeljs.io) config with tests needed mapped to the [`whitelist` option](https://babeljs.io/docs/usage/options/), use `--output=babel`. To produce the configuration for Traceur, use `--output=traceur`.
 
 To force the inclusion of a specific test check, use `--require` and specify the test name (matching the test result from this *es-feature-tests* library).
 
@@ -147,6 +152,9 @@ The options correspond similarly to the CLI parameters described above:
 * `files` (`string`, `array`): specifies file(s) to scan
 * `dirs` (`string`, `array`): specifies director(ies) of file(s) to scan
 * `excludes` (`string`, `array`): specifies exclusion pattern(s)
+* `output` (`string`: `"simple"`, `"json"`, `"babel"`, `"traceur"`): controls the output formatting of the list of tests needed
+
+   **Note:** The CLI `--output` option defaults to `"simple"` (the code for `checkFeatureTests(..)`), but the default value for the library option is `"json"`, which *actually produces the array object itself, since that will likely be more useful when used programmatically.
 * `requires` (`string`, `array`): specifies test(s) that should be included
 * `recursive` (`boolean`, default: `false`): make directory scans recursive
 * `ignore` (`object`, `boolean`): if `true`/`false`, will set all sub-properties accordingly; otherwise, should be an object with one or more of these:
