@@ -47,7 +47,6 @@ function printHelp() {
 		"--output=[simple|json|babel|traceur]\n",
 		"                          control output format (see docs)\n",
 		"                          (default: simple)\n",
-		"\n",
 		"--require=test-name       force inclusion of a test by name\n",
 		"\n",
 		"-R, --recursive           directory scan is recursive\n",
