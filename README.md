@@ -137,7 +137,7 @@ Suppress errors for missing scan files with `--ignore-missing` and for invalid f
 `testify` can also be used programmatically in JS:
 
 ```js
-var testify = require("es-feature-tests/lib/testify/index.js"),
+var testify = require("es-feature-tests/testify"),
 	code = testify.scan({ ..options.. });
 
 // (Optional) To use the function inside Node:

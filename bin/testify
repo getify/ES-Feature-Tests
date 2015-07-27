@@ -23,7 +23,7 @@ var fs = require("fs"),
 			"ignore-invalid": "I"
 		}
 	}),
-	testify = require(path.join(__dirname,"..","lib","testify","index.js"))
+	testify = require(path.join(__dirname,"..","testify"))
 ;
 
 main();

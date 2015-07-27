@@ -6,7 +6,7 @@ Object.assign||Object.defineProperty(Object,"assign",{enumerable:!1,configurable
 var fs = require("fs"),
 	os = require("os"),
 	path = require("path"),
-	ft = require(path.join(__dirname,"..","featuretests.js")),
+	ft = require(path.join(__dirname,"..","..","lib","featuretests.js")),
 	acorn = require("acorn/dist/acorn_loose"),
 	walk = require("acorn/dist/walk"),
 
