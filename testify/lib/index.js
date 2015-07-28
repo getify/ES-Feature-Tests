@@ -160,9 +160,10 @@ function fixPath(pathStr) {
 function validateOptions() {
 	if (!(
 			OPTS.files != null ||
-			OPTS.dirs != null
+			OPTS.dirs != null ||
+			OPTS.content != null
 	)) {
-		throw new Error("Missing required option: 'files' or 'dirs'");
+		throw new Error("Missing required option: 'files', 'dirs', or 'content'");
 	}
 	else if (
 		OPTS.files != null &&
@@ -213,7 +214,16 @@ function validateOptions() {
 		throw new Error("'excludes' option must specify a single non-empty value, or an array of non-empty values");
 	}
 	else if (
-		OPTS.output &&
+		OPTS.content != null &&
+		(
+			typeof OPTS.content != "string" ||
+			OPTS.content.trim() === ""
+		)
+	) {
+		throw new Error("'content' option must specify a single non-empty value");
+	}
+	else if (
+		OPTS.output != null &&
 		!~(["simple","json","babel","traceur"]).indexOf(OPTS.output)
 	) {
 		throw new Error("'output' option must be one of: 'simple', 'json', 'babel', or 'traceur'");
@@ -299,6 +309,14 @@ function processOptions() {
 	}
 	if (OPTS.dirs && !Array.isArray(OPTS.dirs)) {
 		OPTS.dirs = [OPTS.dirs];
+	}
+	if (OPTS.content) {
+		OPTS.content = OPTS.content.trim();
+	}
+
+	// include text content
+	if (OPTS.content) {
+		scanText(OPTS.content,"(STDIN)");
 	}
 
 	// include manually specified files
@@ -403,7 +421,7 @@ function fixPath(pathStr) {
 }
 
 function scanFile(filepath) {
-	var contents, ast;
+	var contents;
 
 	try {
 		if (!(
@@ -418,6 +436,12 @@ function scanFile(filepath) {
 	}
 
 	contents = fs.readFileSync(filepath,{ encoding: "utf8" });
+
+	scanText(contents);
+}
+
+function scanText(contents,filepath) {
+	var ast;
 
 	try {
 		ast = acorn.parse_dammit(contents,parse_options);

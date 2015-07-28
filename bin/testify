@@ -8,21 +8,26 @@ Object.assign||Object.defineProperty(Object,"assign",{enumerable:!1,configurable
 var fs = require("fs"),
 	os = require("os"),
 	path = require("path"),
+	stdin = require("get-stdin"),
 	args = require("minimist")(process.argv,{
-		boolean: [ "recursive", "ignore-missing", "ignore-invalid" ],
+		boolean: [ "recursive", "ignore-missing", "ignore-invalid", "input" ],
 		string: [ "file", "dir", "require", "exclude", "output" ],
 		default: {
 			"recursive": false,
-			"output": "simple",
+			"ignore-missing": false,
+			"ignore-invalid": false,
 			"require": [],
-			"exclude": []
+			"exclude": [],
+			"output": "simple"
 		},
 		alias: {
 			"recursive": "R",
 			"ignore-missing": "M",
-			"ignore-invalid": "I"
+			"ignore-invalid": "I",
+			"input": "C"
 		}
 	}),
+	// include lib
 	testify = require(path.join(__dirname,"..","testify"))
 ;
 
@@ -43,6 +48,7 @@ function printHelp() {
 		"--file=file               scan a single file\n",
 		"--dir=directory           scan all files in a directory\n",
 		"--exclude=pattern         exclude any included paths that match pattern (JS regex)\n",
+		"-C, --input               scan file contents from STDIN\n",
 		"\n",
 		"--output=[simple|json|babel|traceur]\n",
 		"                          control output format (see docs)\n",
@@ -64,9 +70,10 @@ function validateParams() {
 	}
 	else if (!(
 			"file" in args ||
-			"dir" in args
+			"dir" in args ||
+			args.input
 	)) {
-		QUIT("Required: '--file' or '--dir'");
+		QUIT("Required: '--file', '--dir', or '--input (-C)'");
 	}
 	else if (
 		args.file != null &&
@@ -139,6 +146,12 @@ function validateParams() {
 		QUIT("Each '--require' must specify a non-empty value");
 	}
 	else if (
+		"input" in args &&
+		typeof args.input != "boolean"
+	) {
+		QUIT("'--input (-C)' must have no value");
+	}
+	else if (
 		"recursive" in args &&
 		typeof args.recursive != "boolean"
 	) {
@@ -158,9 +171,25 @@ function validateParams() {
 	}
 }
 
-function processParams() {
+function processParams(ready) {
 	// verify CLI usage
 	validateParams();
+
+	if (args.input) {
+		stdin(function read(data){
+			data = data.trim();
+			if (!data) {
+				QUIT("Required: '--input (-C)' specified, but STDIN was empty");
+			}
+
+			args.input = data;
+			ready();
+		});
+	}
+	else {
+		args.input = null;
+		ready();
+	}
 }
 
 function QUIT(fatal,hideHelp) {
@@ -175,31 +204,32 @@ function QUIT(fatal,hideHelp) {
 }
 
 function main() {
-	var output;
+	processParams(function ready(){
+		var output;
 
-	processParams();
+		try {
+			// set options from params
+			output = testify.scan({
+				files: args.file,
+				dirs: args.dir,
+				excludes: args.exclude,
+				output: args.output,
+				content: args.input,
+				requires: args.require,
+				recursive: args.recursive,
 
-	try {
-		// set options from params
-		output = testify.scan({
-			files: args.file,
-			dirs: args.dir,
-			excludes: args.exclude,
-			output: args.output,
-			requires: args.require,
-			recursive: args.recursive,
+				ignore: {
+					missing: args["ignore-missing"],
+					invalid: args["ignore-invalid"]
+				}
+			});
 
-			ignore: {
-				missing: args["ignore-missing"],
-				invalid: args["ignore-invalid"]
-			}
-		});
+			if (typeof output != "string") output = JSON.stringify(output);
 
-		if (typeof output != "string") output = JSON.stringify(output);
-
-		process.stdout.write(output);
-	}
-	catch (err) {
-		QUIT(err.message);
-	}
+			process.stdout.write(output);
+		}
+		catch (err) {
+			QUIT(err.message);
+		}
+	});
 }

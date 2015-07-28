@@ -108,6 +108,7 @@ options:
 --file=file               scan a single file
 --dir=directory           scan all files in a directory
 --exclude=pattern         exclude any included paths that match pattern (JS regex)
+-C, --input               scan file contents from STDIN
 
 --output=[simple|json|babel|traceur]
                           control output format (see docs)
@@ -122,7 +123,7 @@ options:
                           (default: off)
 ```
 
-You specify file(s) to scan by using one or more `--file` and/or `--dir` flags.
+Specify file(s) to scan by using one or more `--file` and/or `--dir` flags, and/or import text contents via `STDIN` by specifying `--input (-C)`.
 
 If you use `--dir`, that directory's contents will be examined (non-recursively), and all found JS files will be scanned. Use `--recursive (-R)` to recursively examine sub-directories. To exclude any files/paths from this processing, use one or more `--exclude` flags, specifying a JS-style regular expression to match for exclusion (note: to avoid shell escaping issues, surround your regex in ' ' quotes).
 
@@ -152,6 +153,7 @@ The options correspond similarly to the CLI parameters described above:
 * `files` (`string`, `array`): specifies file(s) to scan
 * `dirs` (`string`, `array`): specifies director(ies) of file(s) to scan
 * `excludes` (`string`, `array`): specifies exclusion pattern(s)
+* `content` (`string`): specifies text to scan as if it was already read from a file
 * `output` (`string`: `"simple"`, `"json"`, `"babel"`, `"traceur"`): controls the output formatting of the list of tests needed
 
    **Note:** The CLI `--output` option defaults to `"simple"` (the code for `checkFeatureTests(..)`), but the default value for the library option is `"json"`, which *actually produces the array object itself, since that will likely be more useful when used programmatically.

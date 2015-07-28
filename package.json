@@ -1,6 +1,6 @@
 {
 	"name": "es-feature-tests",
-	"version": "0.2.0-a",
+	"version": "0.2.1-a",
 	"description": "Feature Tests for JavaScript",
 	"main": "./lib/rs.js",
 	"scripts": {
@@ -12,7 +12,8 @@
 	},
 	"dependencies": {
 		"minimist": "~1.1.1",
-		"acorn": "~2.0.1"
+		"acorn": "~2.0.1",
+		"get-stdin": "~4.0.1"
 	},
 	"devDependencies": {
 		"uglify-js": "~2.4.8"
