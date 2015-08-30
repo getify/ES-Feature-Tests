@@ -229,20 +229,36 @@ function validateOptions() {
 		throw new Error("'output' option must be one of: 'simple', 'json', 'babel', or 'traceur'");
 	}
 	else if (
-		OPTS.requires != null &&
+		OPTS.enabled != null &&
 		(
-			OPTS.requires === "" ||
+			OPTS.enabled === "" ||
 			(
-				typeof OPTS.requires != "string" &&
-				!Array.isArray(OPTS.requires)
+				typeof OPTS.enabled != "string" &&
+				!Array.isArray(OPTS.enabled)
 			) ||
 			(
-				Array.isArray(OPTS.requires) &&
-				~OPTS.requires.indexOf("")
+				Array.isArray(OPTS.enabled) &&
+				~OPTS.enabled.indexOf("")
 			)
 		)
 	) {
-		throw new Error("'requires' option must specify a single non-empty value, or an array of non-empty values");
+		throw new Error("'enabled' option must specify a single non-empty value, or an array of non-empty values");
+	}
+	else if (
+		OPTS.disabled != null &&
+		(
+			OPTS.disabled === "" ||
+			(
+				typeof OPTS.disabled != "string" &&
+				!Array.isArray(OPTS.disabled)
+			) ||
+			(
+				Array.isArray(OPTS.disabled) &&
+				~OPTS.disabled.indexOf("")
+			)
+		)
+	) {
+		throw new Error("'disabled' option must specify a single non-empty value, or an array of non-empty values");
 	}
 	else if (
 		OPTS.recursive != null &&
@@ -298,12 +314,23 @@ function processOptions() {
 	if (!OPTS.output) {
 		OPTS.output = "json";
 	}
-	if (!OPTS.requires) {
-		OPTS.requires = [];
+	if (!OPTS.disabled) {
+		OPTS.disabled = [];
 	}
-	else if (!Array.isArray(OPTS.requires)) {
-		OPTS.requires = [OPTS.requires];
+	else if (!Array.isArray(OPTS.disabled)) {
+		OPTS.disabled = [OPTS.disabled];
 	}
+	if (!OPTS.enabled) {
+		OPTS.enabled = [];
+	}
+	else if (!Array.isArray(OPTS.enabled)) {
+		OPTS.enabled = [OPTS.enabled];
+	}
+	// now exclude disabled tests
+	OPTS.enabled = OPTS.enabled.filter(function filterer(test){
+		return !~OPTS.disabled.indexOf(test);
+	});
+
 	if (OPTS.files && !Array.isArray(OPTS.files)) {
 		OPTS.files = [OPTS.files];
 	}
@@ -669,8 +696,10 @@ function scan(opts) {
 	processOptions();
 
 	// set required tests
-	OPTS.requires.forEach(function eacher(test){
-		tests_needed[test] = true;
+	OPTS.enabled.forEach(function eacher(test){
+		if (tests_needed.hasOwnProperty(test)) {
+			tests_needed[test] = true;
+		}
 	});
 
 	// scan all files for ES6+ features
@@ -679,7 +708,12 @@ function scan(opts) {
 	// filter out any tests not needed
 	tests_needed = Object.keys(tests_needed)
 		.filter(function filterer(test){
-			return tests_needed[test];
+			return (
+				// keep only tests that already passed...
+				tests_needed[test] &&
+				// ...but exclude any explicitly disabled tests
+				!~OPTS.disabled.indexOf(test)
+			);
 		});
 
 	// populate output

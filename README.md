@@ -113,7 +113,8 @@ options:
 --output=[simple|json|babel|traceur]
                           control output format (see docs)
                           (default: simple)
---require=test-name       force inclusion of a test by name
+--enable=test-name        force inclusion of a test by name
+--disable=test-name       force exclusion of a test by name
 
 -R, --recursive           directory scan is recursive
                           (default: off)
@@ -129,7 +130,7 @@ If you use `--dir`, that directory's contents will be examined (non-recursively)
 
 The default (`--output=simple`) output of the `testify` CLI tool is the code for the `checkFeatureTests(..)` function, as described above. If you'd prefer to receive a JSON string holding the array of tests needed by name, specify `--output=json`. If you want to produce a [Babel](https://babeljs.io) config with tests needed mapped to the [`whitelist` option](https://babeljs.io/docs/usage/options/), use `--output=babel`. To produce the configuration for Traceur, use `--output=traceur`.
 
-To force the inclusion of a specific test check, use `--require` and specify the test name (matching the test result from this *es-feature-tests* library).
+To force the inclusion of a specific test check, use `--enable` and specify the name (matching the test result name from this *es-feature-tests* library). To exclude a specific test check, use `--disable` and specify the matching name.
 
 Suppress errors for missing scan files with `--ignore-missing` and for invalid files (failure to parse the JS) with `--ignore-invalid`.
 
@@ -157,13 +158,14 @@ The options correspond similarly to the CLI parameters described above:
 * `output` (`string`: `"simple"`, `"json"`, `"babel"`, `"traceur"`): controls the output formatting of the list of tests needed
 
    **Note:** The CLI `--output` option defaults to `"simple"` (the code for `checkFeatureTests(..)`), but the default value for the library option is `"json"`, which *actually produces the array object itself, since that will likely be more useful when used programmatically.
-* `requires` (`string`, `array`): specifies test(s) that should be included
+* `enabled` (`string`, `array`): specifies test(s) that should always be included
+* `disabled` (`string`, `array`): specifies test(s) that should never be included
 * `recursive` (`boolean`, default: `false`): make directory scans recursive
 * `ignore` (`object`, `boolean`): if `true`/`false`, will set all sub-properties accordingly; otherwise, should be an object with one or more of these:
   - `ignore.missing` (`boolean`): ignore files or directories not found
   - `ignore.invalid` (`boolean`): ignore files where the scan fails
 
-**Note:** `files`, `dirs`, `excludes`, and `requires` are all plurally named as options, but singularly named as CLI parameters.
+**Note:** `files`, `dirs`, and `excludes` all have the -`s` suffix, and `enabled` and `disabled` both have the -`d` suffix. However, the associated CLI parameter names do not have these suffixes.
 
 ## GitHub
 

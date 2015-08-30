@@ -11,12 +11,13 @@ var fs = require("fs"),
 	stdin = require("get-stdin"),
 	args = require("minimist")(process.argv,{
 		boolean: [ "recursive", "ignore-missing", "ignore-invalid", "input" ],
-		string: [ "file", "dir", "require", "exclude", "output" ],
+		string: [ "file", "dir", "enable", "disable", "exclude", "output" ],
 		default: {
 			"recursive": false,
 			"ignore-missing": false,
 			"ignore-invalid": false,
-			"require": [],
+			"enable": [],
+			"disable": [],
 			"exclude": [],
 			"output": "simple"
 		},
@@ -53,7 +54,8 @@ function printHelp() {
 		"--output=[simple|json|babel|traceur]\n",
 		"                          control output format (see docs)\n",
 		"                          (default: simple)\n",
-		"--require=test-name       force inclusion of a test by name\n",
+		"--enable=test-name        force inclusion of a test by name\n",
+		"--disable=test-name       force exclusion of a test by name\n",
 		"\n",
 		"-R, --recursive           directory scan is recursive\n",
 		"                          (default: off)\n",
@@ -130,20 +132,36 @@ function validateParams() {
 		QUIT("'--output' must be included only once and be one of: 'simple', 'json', 'babel', or 'traceur'");
 	}
 	else if (
-		args.require != null &&
+		args.enable != null &&
 		(
-			args.require === "" ||
+			args.enable === "" ||
 			(
-				typeof args.require != "string" &&
-				!Array.isArray(args.require)
+				typeof args.enable != "string" &&
+				!Array.isArray(args.enable)
 			) ||
 			(
-				Array.isArray(args.require) &&
-				~args.require.indexOf("")
+				Array.isArray(args.enable) &&
+				~args.enable.indexOf("")
 			)
 		)
 	) {
-		QUIT("Each '--require' must specify a non-empty value");
+		QUIT("Each '--enable' must specify a non-empty value");
+	}
+	else if (
+		args.disable != null &&
+		(
+			args.disable === "" ||
+			(
+				typeof args.disable != "string" &&
+				!Array.isArray(args.disable)
+			) ||
+			(
+				Array.isArray(args.disable) &&
+				~args.disable.indexOf("")
+			)
+		)
+	) {
+		QUIT("Each '--disable' must specify a non-empty value");
 	}
 	else if (
 		"input" in args &&
@@ -215,7 +233,8 @@ function main() {
 				excludes: args.exclude,
 				output: args.output,
 				content: args.input,
-				requires: args.require,
+				enabled: args.enable,
+				disabled: args.disable,
 				recursive: args.recursive,
 
 				ignore: {
